@@ -81,7 +81,7 @@ async function analyze(payload) {
     const run = await api('/api/analyze', { method: 'POST', body: { ...payload, lang: settings.lang, tone: settings.tone, model: settings.model || undefined } });
     stop(true);
     history.pushState({}, '', `/?run=${run.id}`);
-    renderResult(run);
+    renderResult(run, { fresh: true });
     refreshPill();
     $('#result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
@@ -125,7 +125,8 @@ function startProgress() {
 }
 
 // ---------- result ----------
-function renderResult(run, { share = false } = {}) {
+// fresh: just marked up, so the email search starts straight away.
+function renderResult(run, { share = false, fresh = false } = {}) {
   const a = run.analysis;
   const ad = run.ad || {};
   const assumptions = { ...run.assumptions };
@@ -306,23 +307,21 @@ function renderResult(run, { share = false } = {}) {
     flash(e.target, 'Copied');
   });
 
-  // Who to email: a web search on demand, saved with the run.
+  // Who to email: a web search that starts right after a markup (older ads get a button),
+  // saved with the run.
   const contactBox = $('#contacts');
-  const renderContacts = (error = '') => {
+  const renderContacts = ({ busy = false, error = '' } = {}) => {
     const c = run.contact;
     const people = c?.contacts || [];
+    const label = busy ? 'Searching the web…' : c ? 'Search again' : 'Find their email';
     contactBox.innerHTML = `
       ${people.length ? `<ul class="contacts">${people.map((p) => contactHtml(p, people.length > 1, p.email === to)).join('')}</ul>` : ''}
       ${c && (c.note || !people.length) ? `<p class="small muted">${esc(c.note || 'No email found.')}</p>` : ''}
-      ${people.length ? '' : `<button class="btn small" id="find-contact">${c ? 'Search again' : 'Find their email'}</button>`}
+      ${people.length ? '' : `<button class="btn small" id="find-contact"${busy ? ' disabled' : ''}>${label}</button>`}
       ${error ? `<p class="form-error small">${esc(error)}</p>` : ''}`;
   };
-  renderContacts();
-  contactBox.addEventListener('click', async (e) => {
-    const btn = e.target.closest('#find-contact');
-    if (!btn) return;
-    btn.disabled = true;
-    btn.textContent = 'Searching the web…';
+  const searchContact = async () => {
+    renderContacts({ busy: true });
     try {
       run.contact = (await api(`/api/runs/${run.id}/contact`, { method: 'POST' })).contact;
       to = run.contact.contacts[0]?.email || null;
@@ -330,8 +329,13 @@ function renderResult(run, { share = false } = {}) {
       renderContacts();
       update();
     } catch (err) {
-      if (contactBox.isConnected) renderContacts(err.message);
+      if (contactBox.isConnected) renderContacts({ error: err.message });
     }
+  };
+  renderContacts();
+  if (fresh && !run.contact) searchContact();
+  contactBox.addEventListener('click', (e) => {
+    if (e.target.closest('#find-contact')) searchContact();
   });
   contactBox.addEventListener('change', (e) => {
     if (e.target.name !== 'to') return;
@@ -380,9 +384,6 @@ function renderBanners(a, e) {
   const out = [];
   if (e.signal !== 'strong' || a.signal === 'none') {
     out.push(`<div class="banner warn" title="${esc(a.signal_reason || 'Too little repetitive work in this ad to make a credible case.')}"><b>Not worth sending</b></div>`);
-  }
-  if (a.icp_fit?.fit === 'weak') {
-    out.push(`<div class="banner warn" title="${esc(a.icp_fit.reason || '')}"><b>Check who's buying</b></div>`);
   }
   $('#banners').innerHTML = out.join('');
 }

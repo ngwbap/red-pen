@@ -47,7 +47,7 @@ data/runs/<id>.json   every result is saved: history, share link, hit rate,
 | `server.js` | Tiny HTTP server, API routes, static files |
 | `lib/sources.js` | Reads ads from links, pasted text and the Duunitori search API |
 | `lib/analyze.js` | The prompt and the OpenRouter call, quote verification |
-| `lib/contact.js` | "Find their email": a web search for who to write to, each address checked against its page |
+| `lib/contact.js` | Finds who to email (runs after each markup): a web search, each address checked against its page |
 | `lib/store.js` | Saves runs as JSON files in `data/runs` |
 | `public/economics.js` | The numbers. Shared by server and browser |
 | `public/app.js`, `app.css`, `index.html` | The whole UI |
@@ -121,5 +121,5 @@ that's the hit rate. Fill it up before judging.
 
 About 30 s and $0.06 per ad with `anthropic/claude-sonnet-5.5`, so one $20
 team credit covers ~300 ads. Pick another model in Settings, or change the default with `OPENROUTER_MODEL`.
-"Find their email" runs on the fast model (`OPENROUTER_FAST_MODEL`, default Haiku): about 10 s and
-$0.01–0.03 per ad, saved with the run so it runs once.
+The email search after each markup runs on the fast model (`OPENROUTER_FAST_MODEL`, default Haiku):
+about 10 s and $0.01–0.04 per ad, saved with the run so it runs once.

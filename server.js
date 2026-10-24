@@ -113,7 +113,9 @@ async function serveStatic(res, pathname) {
 async function findRunContact(id) {
   const run = await store.getRun(id);
   if (!run) return null;
-  return store.saveRun({ ...run, contact: await findContact(run) });
+  const contact = await findContact(run);
+  // Re-read: a verdict or an assumption may have been saved while the search ran.
+  return store.saveRun({ ...(await store.getRun(id)), contact });
 }
 
 async function sampleFallback() {
