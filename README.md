@@ -53,8 +53,15 @@ data/runs/<id>.json   every result is saved: history, share link, hit rate,
 | `public/app.js`, `app.css`, `index.html` | The whole UI |
 | `samples/` | A fictional sample ad and its saved result |
 
-API: `POST /api/analyze`, `GET /api/radar?q=`, `GET /api/runs`, `GET /api/config`,
+API: `POST /api/analyze`, `GET /api/radar?q=`, `POST /api/scan`, `GET /api/runs`, `GET /api/config`,
 `GET|PATCH /api/runs/:id`, `POST /api/runs/:id/contact`. Share view: `/r/:id`.
+
+**Radar Scan.** After a search, "Scan these ads" sends every listed ad to the fast model
+(`OPENROUTER_FAST_MODEL`, Haiku by default), six at a time. It judges only the tasks, by the
+same rules as a full markup, and the % comes from the same `economics.js` arithmetic. It's an
+estimate (a few points off the full markup), costs about $0.01 for 40 ads and takes
+~15 s. When it finishes, the list sorts by % and filters to ≥50% repetitive; the filter
+can be changed. Scores are cached in memory by ad URL until the server restarts.
 
 ## Answers to the questions judges will ask
 

@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { readAd, searchDuunitori, UserError } from './lib/sources.js';
-import { analyzeAd, defaultModel, translateTitles } from './lib/analyze.js';
+import { analyzeAd, defaultModel, quickScan, translateTitles } from './lib/analyze.js';
 import { findContact } from './lib/contact.js';
 import { computeEconomics } from './public/economics.js';
 import * as store from './lib/store.js';
@@ -58,6 +58,12 @@ const routes = {
     const english = await translateTitles(result.jobs.map((j) => j.title));
     result.jobs.forEach((j, i) => (j.titleEn = english[i] && english[i] !== j.title ? english[i] : null));
     return result;
+  },
+
+  // One Radar job per request, so the page can show each score as it lands.
+  async 'POST /api/scan'(req) {
+    const { url, title, company, text } = await readBody(req);
+    return quickScan({ url, title, company, text: String(text || '') });
   },
 
   async 'GET /api/runs'() {

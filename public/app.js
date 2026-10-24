@@ -468,23 +468,95 @@ $('#radar-chips').addEventListener('click', (e) => {
   radarForm.requestSubmit();
 });
 let radarJobs = [];
+let radarCount = 0;
+// Scan state for the current search. `token` changes on every new search so a scan
+// still running for the old results stops touching the page.
+const radarScan = { token: 0, running: false, sorted: false, minPercent: 0 };
+const SCAN_FILTERS = [0, 30, 50, 70];
+
 radarForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const q = radarForm.q.value.trim();
   const out = $('#radar-results');
+  Object.assign(radarScan, { token: radarScan.token + 1, running: false, sorted: false, minPercent: 0 });
   out.innerHTML = '<p class="radar-meta">Searching Duunitori…</p>';
   try {
     const { count, jobs } = await api(`/api/radar?q=${encodeURIComponent(q)}`);
     radarJobs = jobs;
-    out.innerHTML = jobs.length
-      ? `<p class="radar-meta">${plural(count, 'live ad')} · most hand-work first</p>
-         <ul class="radar-list">${jobs.map(jobHtml).join('')}</ul>`
-      : `<p class="empty">No live ads match "${esc(q)}". Try a job title in Finnish, like "laskuttaja".</p>`;
+    radarCount = count;
+    if (jobs.length) renderRadar();
+    else out.innerHTML = `<p class="empty">No live ads match "${esc(q)}". Try a job title in Finnish, like "laskuttaja".</p>`;
   } catch (err) {
     out.innerHTML = `<p class="form-error">${esc(err.message)}</p>`;
   }
 });
+
+function renderRadar() {
+  const done = radarJobs.filter((j) => j.scan);
+  const scored = done.filter((j) => !j.scan.error);
+  const failed = done.length - scored.length;
+  const min = radarScan.minPercent;
+
+  let items = radarJobs.map((job, i) => ({ job, i }));
+  if (min > 0) items = items.filter(({ job }) => job.scan && !job.scan.error && job.scan.percent >= min);
+  if (radarScan.sorted) items.sort((a, b) => (b.job.scan?.percent ?? -1) - (a.job.scan?.percent ?? -1));
+
+  let progress = 'Estimates how repetitive each role is. About $0.01 for 40 ads.';
+  if (done.length || radarScan.running) progress = `Scanned ${done.length} / ${radarJobs.length}`;
+  if (failed) progress += failed === done.length ? `. ${radarJobs.find((j) => j.scan?.error).scan.error}` : ` · ${failed} couldn't be scanned`;
+
+  const meta = min > 0
+    ? `${items.length} of ${plural(radarJobs.length, 'ad')} at ≥${min}% repetitive · most repetitive first`
+    : `${plural(radarCount, 'live ad')} · ${radarScan.sorted ? 'most repetitive first' : 'most hand-work first'}`;
+
+  $('#radar-results').innerHTML = `
+    <div class="radar-toolbar">
+      <button type="button" class="btn small" id="scan-btn" ${radarScan.running ? 'disabled' : ''}>${radarScan.running ? 'Scanning…' : 'Scan these ads'}</button>
+      <label class="field inline small"><span>Show</span>
+        <select id="scan-filter" ${scored.length && !radarScan.running ? '' : 'disabled'}>
+          ${SCAN_FILTERS.map((p) => `<option value="${p}" ${p === min ? 'selected' : ''}>${p ? `≥${p}% repetitive` : 'All ads'}</option>`).join('')}
+        </select>
+      </label>
+      <span class="muted small">${esc(progress)}</span>
+    </div>
+    <p class="radar-meta">${meta}</p>
+    ${items.length
+      ? `<ul class="radar-list">${items.map(({ job, i }) => jobHtml(job, i)).join('')}</ul>`
+      : `<p class="empty">No ads at ≥${min}%. Try a lower filter.</p>`}`;
+}
+
+// Scores every listed ad with the fast model, six at a time, and redraws as each lands.
+async function runScan() {
+  const token = radarScan.token;
+  radarScan.running = true;
+  renderRadar();
+  const queue = radarJobs.filter((j) => !j.scan || j.scan.error);
+  const worker = async () => {
+    while (queue.length) {
+      const job = queue.shift();
+      try {
+        job.scan = await api('/api/scan', { method: 'POST', body: { url: job.url, title: job.title, company: job.company, text: job.text } });
+      } catch (err) {
+        job.scan = { error: err.message };
+      }
+      if (token !== radarScan.token) return;
+      renderRadar();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, queue.length) }, worker));
+  if (token !== radarScan.token) return;
+  const anyScored = radarJobs.some((j) => j.scan && !j.scan.error);
+  Object.assign(radarScan, { running: false, sorted: anyScored, minPercent: anyScored ? 50 : 0 });
+  renderRadar();
+}
+
+$('#radar-results').addEventListener('change', (e) => {
+  if (e.target.id !== 'scan-filter') return;
+  radarScan.minPercent = Number(e.target.value);
+  renderRadar();
+});
 $('#radar-results').addEventListener('click', (e) => {
+  if (e.target.closest('#scan-btn')) return runScan();
   const i = e.target.closest('[data-job]')?.dataset.job;
   if (i === undefined) return;
   const job = radarJobs[Number(i)];
@@ -503,12 +575,23 @@ function jobHtml(job, i) {
       ${job.titleEn ? `<div class="muted small">${esc(job.title)}</div>` : ''}
       <div class="meta-line">${esc(job.location || '')}<span class="muted">·</span>${days <= 0 ? 'today' : `${plural(days, 'day')} ago`}</div>
       ${job.signals.length ? `<div class="chips">${job.signals.map((s) => `<span class="chip red">${esc(s)}</span>`).join('')}</div>` : ''}
+      ${scanHtml(job.scan)}
     </div>
     <div class="job-actions">
       <a href="${esc(job.url)}" target="_blank" rel="noopener">Open ad ↗</a>
       <button class="btn primary small" data-job="${i}">Mark up →</button>
     </div>
   </li>`;
+}
+
+function scanHtml(scan) {
+  if (!scan) return '';
+  if (scan.error) return `<div class="scan-score"><span class="muted small">Couldn't scan this one.</span></div>`;
+  return `<div class="scan-score" title="Quick estimate. Mark up for the exact number.">
+    <span class="scan-pill">≈ ${scan.percent}% repetitive</span>
+    <span class="scan-bar"><span style="width:${Math.min(100, scan.percent)}%"></span></span>
+    ${scan.reason ? `<span class="muted small scan-reason">${esc(scan.reason)}</span>` : ''}
+  </div>`;
 }
 
 // ---------- history ----------
