@@ -46,11 +46,20 @@ a { color: inherit; }
 .tabs button:hover { background: var(--bg); color: var(--ink); }
 .tabs button.active { background: var(--ink); color: #fff; }
 .pill { font-size: 12px; opacity: .8; }
+.icon-btn { border: 0; background: none; padding: 7px; border-radius: 8px; cursor: pointer; color: var(--muted); display: grid; place-items: center; }
+.icon-btn:hover { background: var(--bg); color: var(--ink); }
+
+/* Settings: a native popover, so outside clicks and Escape close it. */
+.settings {
+  position: fixed; inset: 60px 28px auto auto; margin: 0; width: min(340px, calc(100vw - 32px));
+  color: var(--ink); box-shadow: 0 12px 32px rgba(60,40,10,.14);
+}
+.settings:popover-open { display: flex; flex-direction: column; gap: 14px; }
+.settings h3 { margin: 0; }
 
 main { max-width: 1240px; margin: 0 auto; padding: 32px 28px 80px; }
 .intro { max-width: 720px; margin-bottom: 20px; }
-.intro h1 { font: 700 30px/1.2 var(--serif); margin: 0 0 8px; letter-spacing: -.01em; }
-.intro p { margin: 0; color: var(--muted); font-size: 16px; }
+.intro h1 { font: 700 30px/1.2 var(--serif); margin: 0; letter-spacing: -.01em; }
 
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
 .card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
@@ -91,7 +100,6 @@ details[open] summary { margin-bottom: 8px; }
   border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 10px; font-size: 13px; cursor: pointer;
 }
 .chip:hover { border-color: var(--ink); }
-.chip-fi { color: var(--faint); font-size: 12px; }
 .chip.red {background: var(--red-soft); border-color: transparent; color: var(--red); cursor: default; }
 
 /* ---------- progress ---------- */
@@ -117,6 +125,7 @@ details[open] summary { margin-bottom: 8px; }
 .banner { border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px; display: flex; gap: 10px; }
 .banner.warn { background: var(--amber-soft); color: #5c4300; }
 .banner b { white-space: nowrap; }
+.banner[title]:not([title=""]), .recipient[title]:not([title=""]), .source-tag[title]:not([title=""]) { cursor: help; }
 
 .result-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
 .side { display: grid; gap: 14px; position: sticky; top: 76px; }
@@ -184,12 +193,11 @@ details[open] summary { margin-bottom: 8px; }
 /* ---------- side cards ---------- */
 .numbers .big b { font: 700 52px/1 var(--serif); color: var(--red); letter-spacing: -.02em; }
 .numbers .big span { display: block; color: var(--muted); margin-top: 4px; }
-.mix { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 16px 0 6px; background: var(--line); }
+.mix { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 16px 0 0; background: var(--line); }
 .mix span { display: block; height: 100%; }
 .m-automate { background: var(--red); }
 .m-assist { background: #ec8b80; }
 .m-human { background: var(--green); }
-.mix-legend { font-size: 13px; color: var(--muted); }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0 0; }
 .stats div { background: var(--bg); border-radius: 8px; padding: 10px; }
 .stats dt { font-size: 12px; color: var(--muted); line-height: 1.3; }
@@ -202,11 +210,11 @@ details[open] summary { margin-bottom: 8px; }
 .source-tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--amber-soft); color: var(--amber); }
 .source-tag.ad { background: #e3f2e8; color: var(--green); }
 
-.recipient { font-weight: 700; font-size: 18px; margin: 0 0 4px; }
+.recipient { font-weight: 700; font-size: 18px; margin: 0; }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .card-head h3 { margin: 0; }
 .email .subject { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
-.email pre { white-space: pre-wrap; font: 14px/1.55 var(--ui); margin: 0 0 10px; background: var(--bg); padding: 12px; border-radius: 8px; }
+.email pre { white-space: pre-wrap; font: 14px/1.55 var(--ui); margin: 0; background: var(--bg); padding: 12px; border-radius: 8px; }
 
 .verdict-buttons { display: flex; gap: 8px; margin-bottom: 8px; }
 .verdict-buttons button { flex: 1; }
@@ -238,7 +246,7 @@ tbody tr:hover { background: #faf9f6; }
 .empty { color: var(--muted); padding: 28px; text-align: center; }
 
 /* ---------- share view ---------- */
-body.share .tabs, body.share .intro, body.share #ad-form { display: none; }
+body.share .tabs, body.share .icon-btn, body.share .intro, body.share #ad-form { display: none; }
 body.share .result-grid { grid-template-columns: minmax(0, 1fr) 340px; }
 
 /* ---------- small screens ---------- */
@@ -249,7 +257,9 @@ body.share .result-grid { grid-template-columns: minmax(0, 1fr) 340px; }
 @media (max-width: 640px) {
   main { padding: 20px 16px 60px; }
   .topbar { padding: 12px 16px; gap: 10px; }
-  .tabs { margin-left: 0; width: 100%; overflow-x: auto; }
+  .tabs { margin-left: 0; width: 100%; overflow-x: auto; order: 3; }
+  .icon-btn { margin-left: auto; }
+  .settings { inset: 56px 16px auto 16px; width: auto; }
   .intro h1 { font-size: 24px; }
   .paper { padding: 28px 20px; }
   .paper-head { padding-right: 0; padding-top: 70px; }

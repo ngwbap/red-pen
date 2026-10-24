@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { readAd, searchDuunitori, UserError } from './lib/sources.js';
-import { analyzeAd, translateTitles } from './lib/analyze.js';
+import { analyzeAd, defaultModel, translateTitles } from './lib/analyze.js';
 import { computeEconomics } from './public/economics.js';
 import * as store from './lib/store.js';
 
@@ -20,6 +20,9 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 const routes = {
   async 'POST /api/analyze'(req) {
     const input = await readBody(req);
+    // Settings can pick any OpenRouter model id; empty means the .env default.
+    const model = input.model || undefined;
+    if (model && !/^[\w.:/-]{1,100}$/.test(model)) throw new UserError('That model id does not look right. Check it in Settings.');
     let ad;
     if (input.sample) {
       ad = { text: await readFile(join(SAMPLES, 'sample-ad.txt'), 'utf8'), company: 'Pohjolan Teräsosa Oy (fictional)', title: 'Tilauskoordinaattori', location: 'Lahti', source: 'sample' };
@@ -27,7 +30,8 @@ const routes = {
     } else {
       ad = await readAd(input);
     }
-    const { analysis, model, ms, usage } = await analyzeAd(ad, { lang: input.lang, tone: input.tone });
+    const result = await analyzeAd(ad, { lang: input.lang, tone: input.tone, model });
+    const { analysis, ms, usage } = result;
     const assumptions = { monthlySalary: analysis.salary?.monthly_eur || 3500 };
     const run = await store.saveRun({
       createdAt: new Date().toISOString(),
@@ -37,11 +41,15 @@ const routes = {
       assumptions,
       percentAtCreation: computeEconomics(analysis.lines, assumptions).percent,
       verdict: null,
-      model,
+      model: result.model,
       ms,
       usage,
     });
     return run;
+  },
+
+  async 'GET /api/config'() {
+    return { model: defaultModel() };
   },
 
   async 'GET /api/radar'(req, url) {

@@ -18,13 +18,34 @@
       <button type="button" data-tab="radar">Radar</button>
       <button type="button" data-tab="history">History <span class="pill" id="stats-pill"></span></button>
     </nav>
+    <button type="button" class="icon-btn" popovertarget="settings" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <form id="settings" class="card settings" popover autocomplete="off">
+      <h3>Settings</h3>
+      <label class="field"><span>Your name</span><input name="name" placeholder="Signs your emails"></label>
+      <label class="field"><span>Model</span><input name="model" list="models" spellcheck="false"></label>
+      <datalist id="models">
+        <option value="anthropic/claude-sonnet-5.5">Careful · ~$0.06 per ad</option>
+        <option value="anthropic/claude-opus-5.5">Most careful · ~$0.12 per ad</option>
+        <option value="anthropic/claude-haiku-5.5">Cheapest · under $0.01 per ad</option>
+        <option value="google/gemini-3.8-flash">Cheap · ~$0.02 per ad</option>
+      </datalist>
+      <div class="form-row">
+        <label class="field inline"><span>Email in</span>
+          <select name="lang"><option value="en">English</option><option value="fi">Finnish</option></select>
+        </label>
+        <label class="field inline"><span>Tone</span>
+          <select name="tone"><option value="friendly">Friendly</option><option value="bold">Bold</option></select>
+        </label>
+      </div>
+    </form>
   </header>
 
   <main>
     <section id="tab-markup" class="tab">
       <div class="intro">
         <h1>Every job ad is a budget that's already approved.</h1>
-        <p>Paste a job ad. Red Pen marks the repetitive work in red, shows the math behind every number, and drafts a short note to the person who owns the budget.</p>
       </div>
 
       <form id="ad-form" class="card input-card" autocomplete="off">
@@ -37,12 +58,6 @@
           <textarea name="text" rows="9" placeholder="Paste the full job ad here, in Finnish or English."></textarea>
         </details>
         <div class="form-row">
-          <label class="field inline"><span>Email in</span>
-            <select name="lang"><option value="en">English</option><option value="fi">Finnish</option></select>
-          </label>
-          <label class="field inline"><span>Tone</span>
-            <select name="tone"><option value="friendly">Friendly</option><option value="bold">Bold</option></select>
-          </label>
           <div class="spacer"></div>
           <button class="btn ghost" type="button" id="sample-btn">Try the sample ad</button>
           <button class="btn primary" type="submit">Mark it up</button>
@@ -66,11 +81,10 @@
     <section id="tab-radar" class="tab" hidden>
       <div class="intro">
         <h1>Find ads worth a red pen.</h1>
-        <p>Searches live job ads on Duunitori by title or company, then ranks them by how much hand-work the text gives away. Duunitori is Finnish, so pick a chip to search with the Finnish job title; results are translated to English.</p>
       </div>
       <form id="radar-form" class="card input-card">
         <div class="form-row">
-          <input name="q" class="grow" placeholder="Finnish job title or a company name, e.g. laskuttaja or Kesko">
+          <input name="q" class="grow" placeholder="Job title in Finnish, or a company">
           <button class="btn primary" type="submit">Search</button>
         </div>
         <div class="chips" id="radar-chips"></div>
@@ -81,7 +95,6 @@
     <section id="tab-history" class="tab" hidden>
       <div class="intro">
         <h1>Every ad we marked up.</h1>
-        <p>Mark each one "would send" or "skip". The hit rate is the honest answer to "does this actually work?"</p>
       </div>
       <div id="history"></div>
     </section>

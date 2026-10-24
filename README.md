@@ -18,7 +18,8 @@ node server.js            # http://localhost:3100
 ```
 
 `node --watch server.js` restarts on file changes. Without a key, only
-"Try the sample ad" works (it loads a saved result).
+"Try the sample ad" works (it loads a saved result). Your name, the model, and the
+email's language and tone are under the gear, top right (saved in the browser).
 
 ## How it works
 
@@ -51,7 +52,7 @@ data/runs/<id>.json   every result is saved: history, share link, hit rate,
 | `public/app.js`, `app.css`, `index.html` | The whole UI |
 | `samples/` | A fictional sample ad and its saved result |
 
-API: `POST /api/analyze`, `GET /api/radar?q=`, `GET /api/runs`,
+API: `POST /api/analyze`, `GET /api/radar?q=`, `GET /api/runs`, `GET /api/config`,
 `GET|PATCH /api/runs/:id`. Share view: `/r/:id`.
 
 ## Answers to the questions judges will ask
@@ -116,4 +117,4 @@ that's the hit rate. Fill it up before judging.
 ## Costs
 
 About 30 s and $0.06 per ad with `anthropic/claude-sonnet-5.5`, so one $20
-team credit covers ~300 ads. A faster model can be set with `OPENROUTER_MODEL`.
+team credit covers ~300 ads. Pick another model in Settings, or change the default with `OPENROUTER_MODEL`.

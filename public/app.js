@@ -25,6 +25,32 @@ async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+// ---------- settings ----------
+// Kept in this browser. Model, language and tone go with each mark-up request;
+// the name fills the sign-off of the draft email.
+const settingsForm = $('#settings');
+const settings = { name: '', model: '', lang: 'en', tone: 'friendly' };
+const stored = readJson('redpen.settings');
+for (const k of Object.keys(settings)) {
+  if (typeof stored[k] === 'string') settings[k] = stored[k];
+  settingsForm.elements[k].value = settings[k];
+}
+let onSettingsChange = () => {};
+settingsForm.addEventListener('input', () => {
+  for (const k of Object.keys(settings)) settings[k] = settingsForm.elements[k].value.trim();
+  writePref('redpen.settings', JSON.stringify(settings));
+  onSettingsChange();
+});
+settingsForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  settingsForm.hidePopover();
+});
+api('/api/config')
+  .then((c) => (settingsForm.elements.model.placeholder = `${c.model} (default)`))
+  .catch(() => {});
+
+const signed = (body) => (settings.name ? body.replace(/\[your name\]/gi, settings.name) : body);
+
 // ---------- tabs ----------
 function showTab(name) {
   $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
@@ -52,7 +78,7 @@ async function analyze(payload) {
   setBusy(true);
   const stop = startProgress();
   try {
-    const run = await api('/api/analyze', { method: 'POST', body: { ...payload, lang: form.lang.value, tone: form.tone.value } });
+    const run = await api('/api/analyze', { method: 'POST', body: { ...payload, lang: settings.lang, tone: settings.tone, model: settings.model || undefined } });
     stop(true);
     history.pushState({}, '', `/?run=${run.id}`);
     renderResult(run);
@@ -127,9 +153,9 @@ function renderResult(run, { share = false } = {}) {
       <div>
         <div class="paper-tools">
           <div class="legend">
-            <span><span class="k-strike">struck</span> can run automatically</span>
-            <span><span class="k-wavy">wavy</span> AI drafts, a person decides</span>
-            <span><span class="k-tick">✓</span> stays human</span>
+            <span><span class="k-strike">struck</span> automatic</span>
+            <span><span class="k-wavy">wavy</span> AI-assisted</span>
+            <span><span class="k-tick">✓</span> human</span>
           </div>
           ${foreign ? `<div class="seg" id="mode" role="group" aria-label="Language of the ad">
             <button type="button" data-mode="en">English</button>
@@ -144,28 +170,26 @@ function renderResult(run, { share = false } = {}) {
           </header>
           <ol class="lines" id="lines"></ol>
           <div class="signoff" id="signoff"></div>
-          <footer class="paper-foot">Marked up by Red Pen from the public job ad${ad.url ? ` (${esc(new URL(ad.url).hostname)})` : ''}. Click any line to see how it could be automated. Figures are estimates; the assumptions are listed next to the page.</footer>
+          <footer class="paper-foot">Marked up by Red Pen from the public job ad${ad.url ? ` (${esc(new URL(ad.url).hostname)})` : ''}. Figures are estimates.</footer>
         </article>
       </div>
       <aside class="side">
         <section class="card numbers">
           <div class="big"><b id="n-percent"></b><span>of this role's week is repetitive work</span></div>
           <div class="mix" id="mix"></div>
-          <div class="mix-legend" id="mix-legend"></div>
           <dl class="stats">
             <div><dt>Hours freed per year</dt><dd id="n-hours"></dd></div>
             <div><dt>Value of that time per year</dt><dd id="n-eur"></dd></div>
             <div><dt>More time on the real job</dt><dd id="n-mult"></dd></div>
           </dl>
-          <details class="assumptions" ${share ? '' : 'open'}>
+          <details class="assumptions">
             <summary>How we got these numbers</summary>
             <ol class="math">
               <li>Every task in the ad gets a verdict and a share of the week (click a line to see it).</li>
               <li>Time freed: <input data-k="rateAutomate" type="number" min="0" max="100" step="5">% of an automatic task, <input data-k="rateAssist" type="number" min="0" max="100" step="5">% of an AI-assisted one, nothing of a human one.</li>
               <li>Hours = time freed × <input data-k="hoursPerYear" type="number" min="100" step="50"> working hours a year.</li>
               <li>Value = time freed × yearly cost: <input data-k="monthlySalary" type="number" min="0" step="100"> €/month
-                <span class="source-tag ${a.salary?.source === 'ad' ? 'ad' : ''}">${a.salary?.source === 'ad' ? 'from the ad' : 'estimate'}</span>
-                <span class="muted">${esc(a.salary?.basis || '')}</span>
+                <span class="source-tag ${a.salary?.source === 'ad' ? 'ad' : ''}" title="${esc(a.salary?.basis || '')}">${a.salary?.source === 'ad' ? 'from the ad' : 'estimate'}</span>
                 × 12.5 months × (1 + <input data-k="sideCosts" type="number" min="0" max="60" step="1">% employer costs).</li>
               <li>"More time on the real job" = 1 ÷ (1 − time freed), when the freed hours go back into the human parts of the role.</li>
             </ol>
@@ -173,15 +197,13 @@ function renderResult(run, { share = false } = {}) {
         </section>
         <section class="card">
           <h3>Send to</h3>
-          <p class="recipient">${esc(a.recipient?.role || 'Head of the team')}</p>
-          <p class="muted small" style="margin:0">${esc(a.recipient?.why || '')}</p>
+          <p class="recipient" title="${esc(a.recipient?.why || '')}">${esc(a.recipient?.role || 'Head of the team')}</p>
         </section>
         ${share ? '' : `
         <section class="card email">
           <div class="card-head"><h3>Draft note</h3><button class="btn small" id="copy-email">Copy</button></div>
           <div class="subject">Subject: <span id="email-subject"></span></div>
           <pre id="email-body"></pre>
-          <p class="muted small" style="margin:0">Draft only. Red Pen never sends anything. Attach the marked-up page as a PDF.</p>
         </section>
         <section class="card verdict">
           <h3>Would you send this?</h3>
@@ -189,10 +211,10 @@ function renderResult(run, { share = false } = {}) {
             <button class="btn" data-v="send">Yes, send it</button>
             <button class="btn" data-v="skip">No, skip</button>
           </div>
-          <input id="verdict-note" placeholder="Why? e.g. &quot;line 4 should not be struck&quot;">
-          <p class="muted small" id="verdict-status" style="margin:8px 0 0"></p>
+          <input id="verdict-note" placeholder="Why?">
+          <p class="form-error small" id="verdict-status" style="margin:8px 0 0" hidden></p>
         </section>`}
-        <p class="under-hood">${verified}/${checked} quoted lines found word-for-word in the ad · ${esc(run.model || '')}${run.ms ? ` · ${Math.round(run.ms / 1000)} s` : ''}${run.usage?.cost ? ` · $${run.usage.cost.toFixed(3)}` : ''}</p>
+        <p class="under-hood">${verified}/${checked} quotes verified · ${esc(run.model || '')}${run.ms ? ` · ${Math.round(run.ms / 1000)} s` : ''}${run.usage?.cost ? ` · $${run.usage.cost.toFixed(3)}` : ''}</p>
       </aside>
     </div>`;
 
@@ -232,16 +254,17 @@ function renderResult(run, { share = false } = {}) {
     $('#n-hours').textContent = e.display.hours;
     $('#n-eur').textContent = e.display.eur;
     $('#n-mult').textContent = e.display.multiplier;
-    $('#mix').innerHTML = ['automate', 'assist', 'human'].map((k) => `<span class="m-${k}" style="width:${(e.mix[k] * 100).toFixed(1)}%"></span>`).join('');
-    $('#mix-legend').textContent = `${plural(e.counts.automate, 'task')} can run automatically · ${e.counts.assist} AI-assisted · ${e.counts.human} stay${e.counts.human === 1 ? 's' : ''} human`;
+    const mixLabel = { automate: 'automatic', assist: 'AI-assisted', human: 'human' };
+    $('#mix').innerHTML = ['automate', 'assist', 'human'].map((k) => `<span class="m-${k}" style="width:${(e.mix[k] * 100).toFixed(1)}%" title="${plural(e.counts[k], 'task')} ${mixLabel[k]}"></span>`).join('');
     $('#signoff').innerHTML = `${esc(a.headline || '')}<small>≈ ${esc(e.display.hours.replace(' h', ' hours'))} a year of hand-work. That's ${esc(e.display.multiplier)} more time for the work that matters.</small>`;
     if (!share) {
       $('#email-subject').textContent = a.email?.subject || '';
-      $('#email-body').textContent = fillTemplate(a.email?.body || '', e, run.options?.lang);
+      $('#email-body').textContent = signed(fillTemplate(a.email?.body || '', e, run.options?.lang));
     }
     renderBanners(a, e);
   }
   update();
+  onSettingsChange = update;
 
   // Line interactions
   $('#paper').addEventListener('click', (e) => {
@@ -278,17 +301,18 @@ function renderResult(run, { share = false } = {}) {
   // Verdict
   const note = $('#verdict-note');
   const status = $('#verdict-status');
-  const paint = (v) => {
-    $$('.verdict-buttons button').forEach((b) => b.classList.toggle('on', b.dataset.v === v?.value));
-    status.textContent = v ? `Saved: ${v.value === 'send' ? 'would send' : 'skip'}. It counts toward the hit rate.` : 'Your call counts toward the hit rate in History.';
-  };
+  const paint = (v) => $$('.verdict-buttons button').forEach((b) => b.classList.toggle('on', b.dataset.v === v?.value));
   note.value = run.verdict?.note || '';
   paint(run.verdict);
   $$('.verdict-buttons button').forEach((b) =>
     b.addEventListener('click', async () => {
       run.verdict = { value: b.dataset.v, note: note.value.trim(), at: new Date().toISOString() };
       paint(run.verdict);
-      await api(`/api/runs/${run.id}`, { method: 'PATCH', body: { verdict: run.verdict } }).catch((err) => (status.textContent = err.message));
+      status.hidden = true;
+      await api(`/api/runs/${run.id}`, { method: 'PATCH', body: { verdict: run.verdict } }).catch((err) => {
+        status.textContent = err.message;
+        status.hidden = false;
+      });
       refreshPill();
     }),
   );
@@ -297,10 +321,10 @@ function renderResult(run, { share = false } = {}) {
 function renderBanners(a, e) {
   const out = [];
   if (e.signal !== 'strong' || a.signal === 'none') {
-    out.push(`<div class="banner warn"><b>Not worth sending.</b><span>${esc(a.signal_reason || 'Too little repetitive work in this ad to make a credible case.')}</span></div>`);
+    out.push(`<div class="banner warn" title="${esc(a.signal_reason || 'Too little repetitive work in this ad to make a credible case.')}"><b>Not worth sending</b></div>`);
   }
   if (a.icp_fit?.fit === 'weak') {
-    out.push(`<div class="banner warn"><b>Check who's buying.</b><span>${esc(a.icp_fit.reason || '')}</span></div>`);
+    out.push(`<div class="banner warn" title="${esc(a.icp_fit.reason || '')}"><b>Check who's buying</b></div>`);
   }
   $('#banners').innerHTML = out.join('');
 }
@@ -338,6 +362,14 @@ function writePref(key, value) {
   }
 }
 
+function readJson(key) {
+  try {
+    return JSON.parse(readPref(key, '{}')) || {};
+  } catch {
+    return {};
+  }
+}
+
 function formatDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -369,7 +401,7 @@ function flash(btn, text) {
 
 // ---------- radar ----------
 const radarForm = $('#radar-form');
-$('#radar-chips').innerHTML = RADAR_CHIPS.map(([fi, en]) => `<button type="button" class="chip" data-q="${esc(fi)}">${esc(en)} <span class="chip-fi">${esc(fi)}</span></button>`).join('');
+$('#radar-chips').innerHTML = RADAR_CHIPS.map(([fi, en]) => `<button type="button" class="chip" data-q="${esc(fi)}" title="${esc(fi)}">${esc(en)}</button>`).join('');
 $('#radar-chips').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -386,7 +418,7 @@ radarForm.addEventListener('submit', async (e) => {
     const { count, jobs } = await api(`/api/radar?q=${encodeURIComponent(q)}`);
     radarJobs = jobs;
     out.innerHTML = jobs.length
-      ? `<p class="radar-meta">${count} live ads match "${esc(q)}". Showing ${jobs.length}, most hand-work first.</p>
+      ? `<p class="radar-meta">${plural(count, 'live ad')} · most hand-work first</p>
          <ul class="radar-list">${jobs.map(jobHtml).join('')}</ul>`
       : `<p class="empty">No live ads match "${esc(q)}". Try a job title in Finnish, like "laskuttaja".</p>`;
   } catch (err) {
@@ -411,7 +443,7 @@ function jobHtml(job, i) {
       <div class="job-title">${esc(job.titleEn || job.title)}</div>
       ${job.titleEn ? `<div class="muted small">${esc(job.title)}</div>` : ''}
       <div class="meta-line">${esc(job.location || '')}<span class="muted">·</span>${days <= 0 ? 'today' : `${plural(days, 'day')} ago`}</div>
-      <div class="chips">${job.signals.length ? job.signals.map((s) => `<span class="chip red">${esc(s)}</span>`).join('') : '<span class="muted small">no hand-work keywords</span>'}</div>
+      ${job.signals.length ? `<div class="chips">${job.signals.map((s) => `<span class="chip red">${esc(s)}</span>`).join('')}</div>` : ''}
     </div>
     <div class="job-actions">
       <a href="${esc(job.url)}" target="_blank" rel="noopener">Open ad ↗</a>
@@ -425,7 +457,7 @@ async function renderHistory() {
   const out = $('#history');
   const runs = await api('/api/runs').catch(() => []);
   if (!runs.length) {
-    out.innerHTML = '<p class="empty">Nothing marked up yet. Try the sample ad or the radar.</p>';
+    out.innerHTML = '<p class="empty">Nothing marked up yet.</p>';
     return;
   }
   const send = runs.filter((r) => r.verdict?.value === 'send').length;
