@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Red Pen</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✎</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">✎</span> Red Pen <span class="brand-sub">for Velho · prototype</span></a>
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="markup" class="active">Mark up an ad</button>
+      <button type="button" data-tab="radar">Radar</button>
+      <button type="button" data-tab="history">History <span class="pill" id="stats-pill"></span></button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-markup" class="tab">
+      <div class="intro">
+        <h1>Every job ad is a budget that's already approved.</h1>
+        <p>Paste a job ad. Red Pen marks the repetitive work in red, shows the math behind every number, and drafts a short note to the person who owns the budget.</p>
+      </div>
+
+      <form id="ad-form" class="card input-card" autocomplete="off">
+        <label class="field">
+          <span>Job ad link</span>
+          <input name="url" type="url" placeholder="https://duunitori.fi/tyopaikat/tyo/…">
+        </label>
+        <details id="paste">
+          <summary>…or paste the ad text</summary>
+          <textarea name="text" rows="9" placeholder="Paste the full job ad here, in Finnish or English."></textarea>
+        </details>
+        <div class="form-row">
+          <label class="field inline"><span>Email in</span>
+            <select name="lang"><option value="en">English</option><option value="fi">Finnish</option></select>
+          </label>
+          <label class="field inline"><span>Tone</span>
+            <select name="tone"><option value="friendly">Friendly</option><option value="bold">Bold</option></select>
+          </label>
+          <div class="spacer"></div>
+          <button class="btn ghost" type="button" id="sample-btn">Try the sample ad</button>
+          <button class="btn primary" type="submit">Mark it up</button>
+        </div>
+        <p class="form-error" id="form-error" hidden></p>
+      </form>
+
+      <div id="progress" class="card progress" hidden>
+        <ol>
+          <li>Reading the ad</li>
+          <li>Finding the repetitive work</li>
+          <li>Checking every quote against the source</li>
+          <li>Doing the math</li>
+          <li>Writing to the budget owner</li>
+        </ol>
+      </div>
+
+      <div id="result"></div>
+    </section>
+
+    <section id="tab-radar" class="tab" hidden>
+      <div class="intro">
+        <h1>Find ads worth a red pen.</h1>
+        <p>Searches live job ads on Duunitori by title or company, then ranks them by how much hand-work the text gives away. Duunitori is Finnish, so pick a chip to search with the Finnish job title; results are translated to English.</p>
+      </div>
+      <form id="radar-form" class="card input-card">
+        <div class="form-row">
+          <input name="q" class="grow" placeholder="Finnish job title or a company name, e.g. laskuttaja or Kesko">
+          <button class="btn primary" type="submit">Search</button>
+        </div>
+        <div class="chips" id="radar-chips"></div>
+      </form>
+      <div id="radar-results"></div>
+    </section>
+
+    <section id="tab-history" class="tab" hidden>
+      <div class="intro">
+        <h1>Every ad we marked up.</h1>
+        <p>Mark each one "would send" or "skip". The hit rate is the honest answer to "does this actually work?"</p>
+      </div>
+      <div id="history"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

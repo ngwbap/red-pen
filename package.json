@@ -1,0 +1,14 @@
+{
+  "name": "red-pen",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Red Pen: marks the repetitive work in a job ad and drafts a note to the budget owner. Built for the Velho challenge.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  }
+}
