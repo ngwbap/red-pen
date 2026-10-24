@@ -47,13 +47,14 @@ data/runs/<id>.json   every result is saved: history, share link, hit rate,
 | `server.js` | Tiny HTTP server, API routes, static files |
 | `lib/sources.js` | Reads ads from links, pasted text and the Duunitori search API |
 | `lib/analyze.js` | The prompt and the OpenRouter call, quote verification |
+| `lib/contact.js` | "Find their email": a web search for who to write to, each address checked against its page |
 | `lib/store.js` | Saves runs as JSON files in `data/runs` |
 | `public/economics.js` | The numbers. Shared by server and browser |
 | `public/app.js`, `app.css`, `index.html` | The whole UI |
 | `samples/` | A fictional sample ad and its saved result |
 
 API: `POST /api/analyze`, `GET /api/radar?q=`, `GET /api/runs`, `GET /api/config`,
-`GET|PATCH /api/runs/:id`. Share view: `/r/:id`.
+`GET|PATCH /api/runs/:id`, `POST /api/runs/:id/contact`. Share view: `/r/:id`.
 
 ## Answers to the questions judges will ask
 
@@ -103,7 +104,9 @@ that's the hit rate. Fill it up before judging.
 
 ## Rules we keep
 
-- Nothing is ever sent. Emails are drafts.
+- Nothing is ever sent. Emails are drafts; the To: link only opens your mail app.
+- An address is shown only if it was seen on a page (checked by the server) or built from the
+  company's published format, and the UI says which.
 - No contacting real companies, no publishing in Velho's name.
 - The ad text is treated as untrusted data in the prompt.
 
@@ -118,3 +121,5 @@ that's the hit rate. Fill it up before judging.
 
 About 30 s and $0.06 per ad with `anthropic/claude-sonnet-5.5`, so one $20
 team credit covers ~300 ads. Pick another model in Settings, or change the default with `OPENROUTER_MODEL`.
+"Find their email" runs on the fast model (`OPENROUTER_FAST_MODEL`, default Haiku): about 10 s and
+$0.01–0.03 per ad, saved with the run so it runs once.

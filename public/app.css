@@ -211,6 +211,15 @@ details[open] summary { margin-bottom: 8px; }
 .source-tag.ad { background: #e3f2e8; color: var(--green); }
 
 .recipient { font-weight: 700; font-size: 18px; margin: 0; }
+#contacts > * { margin: 12px 0 0; }
+.contacts { list-style: none; padding: 0; display: grid; gap: 10px; }
+.contacts label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.4; }
+.contacts input { width: auto; padding: 0; margin: 3px 0 0; accent-color: var(--red); }
+.contact-email, .contact-src { display: block; overflow-wrap: anywhere; }
+.contact-src { font-size: 12px; color: var(--muted); }
+.contact-src.ok { color: var(--green); }
+.contact-src a { color: inherit; }
+.email .subject a { color: var(--red); }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .card-head h3 { margin: 0; }
 .email .subject { font-weight: 600; font-size: 14px; margin-bottom: 8px; }

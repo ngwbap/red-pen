@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { readAd, searchDuunitori, UserError } from './lib/sources.js';
 import { analyzeAd, defaultModel, translateTitles } from './lib/analyze.js';
+import { findContact } from './lib/contact.js';
 import { computeEconomics } from './public/economics.js';
 import * as store from './lib/store.js';
 
@@ -75,10 +76,12 @@ const routes = {
 
 async function handleApi(req, res, url) {
   const run = url.pathname.match(/^\/api\/runs\/([\w-]+)$/);
+  const contact = url.pathname.match(/^\/api\/runs\/([\w-]+)\/contact$/);
   try {
     let data;
     if (run && req.method === 'GET') data = await store.getRun(run[1]);
     else if (run && req.method === 'PATCH') data = await store.updateRun(run[1], await readBody(req));
+    else if (contact && req.method === 'POST') data = await findRunContact(contact[1]);
     else {
       const handler = routes[`${req.method} ${url.pathname}`];
       if (!handler) return send(res, 404, { error: 'Not found' });
@@ -104,6 +107,13 @@ async function serveStatic(res, pathname) {
   } catch {
     send(res, 404, 'Not found');
   }
+}
+
+// Who to email: a web search, saved with the run so it only costs once per ad.
+async function findRunContact(id) {
+  const run = await store.getRun(id);
+  if (!run) return null;
+  return store.saveRun({ ...run, contact: await findContact(run) });
 }
 
 async function sampleFallback() {

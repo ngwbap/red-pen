@@ -135,6 +135,7 @@ function renderResult(run, { share = false } = {}) {
   const foreign = a.ad_language && a.ad_language !== 'en';
   const checked = a.lines.filter((l) => l.kind !== 'context').length;
   const verified = a.lines.filter((l) => l.kind !== 'context' && l.verified).length;
+  let to = run.contact?.contacts[0]?.email || null;
 
   $('#result').innerHTML = `
     <div class="result-meta">
@@ -198,10 +199,12 @@ function renderResult(run, { share = false } = {}) {
         <section class="card">
           <h3>Send to</h3>
           <p class="recipient" title="${esc(a.recipient?.why || '')}">${esc(a.recipient?.role || 'Head of the team')}</p>
+          ${share ? '' : '<div id="contacts"></div>'}
         </section>
         ${share ? '' : `
         <section class="card email">
           <div class="card-head"><h3>Draft note</h3><button class="btn small" id="copy-email">Copy</button></div>
+          <div class="subject" id="email-to-row" hidden>To: <a id="email-to" title="Open this note in your mail app"></a></div>
           <div class="subject">Subject: <span id="email-subject"></span></div>
           <pre id="email-body"></pre>
         </section>
@@ -258,8 +261,13 @@ function renderResult(run, { share = false } = {}) {
     $('#mix').innerHTML = ['automate', 'assist', 'human'].map((k) => `<span class="m-${k}" style="width:${(e.mix[k] * 100).toFixed(1)}%" title="${plural(e.counts[k], 'task')} ${mixLabel[k]}"></span>`).join('');
     $('#signoff').innerHTML = `${esc(a.headline || '')}<small>≈ ${esc(e.display.hours.replace(' h', ' hours'))} a year of hand-work. That's ${esc(e.display.multiplier)} more time for the work that matters.</small>`;
     if (!share) {
-      $('#email-subject').textContent = a.email?.subject || '';
-      $('#email-body').textContent = signed(fillTemplate(a.email?.body || '', e, run.options?.lang));
+      const subject = a.email?.subject || '';
+      const body = signed(fillTemplate(a.email?.body || '', e, run.options?.lang));
+      $('#email-subject').textContent = subject;
+      $('#email-body').textContent = body;
+      $('#email-to-row').hidden = !to;
+      $('#email-to').textContent = to || '';
+      $('#email-to').href = to ? `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` : '';
     }
     renderBanners(a, e);
   }
@@ -294,8 +302,41 @@ function renderResult(run, { share = false } = {}) {
     flash(e.target, 'Link copied');
   });
   $('#copy-email').addEventListener('click', async (e) => {
-    await navigator.clipboard.writeText(`Subject: ${$('#email-subject').textContent}\n\n${$('#email-body').textContent}`);
+    await navigator.clipboard.writeText(`${to ? `To: ${to}\n` : ''}Subject: ${$('#email-subject').textContent}\n\n${$('#email-body').textContent}`);
     flash(e.target, 'Copied');
+  });
+
+  // Who to email: a web search on demand, saved with the run.
+  const contactBox = $('#contacts');
+  const renderContacts = (error = '') => {
+    const c = run.contact;
+    const people = c?.contacts || [];
+    contactBox.innerHTML = `
+      ${people.length ? `<ul class="contacts">${people.map((p) => contactHtml(p, people.length > 1, p.email === to)).join('')}</ul>` : ''}
+      ${c && (c.note || !people.length) ? `<p class="small muted">${esc(c.note || 'No email found.')}</p>` : ''}
+      ${people.length ? '' : `<button class="btn small" id="find-contact">${c ? 'Search again' : 'Find their email'}</button>`}
+      ${error ? `<p class="form-error small">${esc(error)}</p>` : ''}`;
+  };
+  renderContacts();
+  contactBox.addEventListener('click', async (e) => {
+    const btn = e.target.closest('#find-contact');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = 'Searching the web…';
+    try {
+      run.contact = (await api(`/api/runs/${run.id}/contact`, { method: 'POST' })).contact;
+      to = run.contact.contacts[0]?.email || null;
+      if (!contactBox.isConnected) return;
+      renderContacts();
+      update();
+    } catch (err) {
+      if (contactBox.isConnected) renderContacts(err.message);
+    }
+  });
+  contactBox.addEventListener('change', (e) => {
+    if (e.target.name !== 'to') return;
+    to = e.target.value;
+    update();
   });
 
   // Verdict
@@ -316,6 +357,23 @@ function renderResult(run, { share = false } = {}) {
       refreshPill();
     }),
   );
+}
+
+// The source line says how much to trust the address: seen on a page, or built from the company's format.
+function contactHtml(p, pick, checked) {
+  const host = p.source_url ? new URL(p.source_url).hostname.replace(/^www\./, '') : '';
+  const on = host ? ` on <a href="${esc(p.source_url)}" target="_blank" rel="noopener">${esc(host)}</a>` : '';
+  const source = p.verified
+    ? `✓ ${p.inAd ? 'in the ad' : `found${on}`}`
+    : p.basis === 'pattern'
+      ? `guessed from the address format${on}`
+      : `not confirmed${on}, check before sending`;
+  return `<li title="${esc(p.why)}"><label>
+    ${pick ? `<input type="radio" name="to" value="${esc(p.email)}"${checked ? ' checked' : ''}>` : ''}
+    <span><b>${esc(p.name || p.email)}</b>${p.title ? ` · ${esc(p.title)}` : ''}
+      ${p.name ? `<span class="contact-email">${esc(p.email)}</span>` : ''}
+      <span class="contact-src${p.verified ? ' ok' : ''}">${source}</span></span>
+  </label></li>`;
 }
 
 function renderBanners(a, e) {
