@@ -126,7 +126,6 @@ that's the hit rate. Fill it up before judging.
 
 ## Costs
 
-About 30 s and $0.06 per ad with `anthropic/claude-sonnet-5.5`, so one $20
-team credit covers ~300 ads. Pick another model in Settings, or change the default with `OPENROUTER_MODEL`.
+The default model is `anthropic/claude-haiku-5.5` at medium reasoning effort. Its cheaper rate covers prompts up to 100k tokens; a job ad is far under that. Pick another model in Settings, or change the default with `OPENROUTER_MODEL`. Sonnet is about 30 s and $0.06 per ad.
 The email search after each markup runs on the fast model (`OPENROUTER_FAST_MODEL`, default Haiku):
 about 10 s and $0.01–0.04 per ad, saved with the run so it runs once.
